@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { User, LeaveRequest, RequestStatus } from '../types';
+import { User, LeaveRequest, RequestStatus, UserRole } from '../types';
 
 interface CalendarViewProps {
   requests: LeaveRequest[];
   users: User[];
+  currentUser: User;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ requests, users }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ requests, users, currentUser }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const daysInMonth = new Date(
@@ -41,9 +42,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ requests, users }) =
     return checkDate >= start && checkDate <= end;
   };
 
+  // Filtra gli utenti da mostrare:
+  // Manager -> Tutti
+  // Dipendente -> Solo utenti del proprio reparto (per coordinazione team)
+  const visibleUsers = useMemo(() => {
+    if (currentUser.role === UserRole.MANAGER) {
+      return users;
+    }
+    return users.filter(u => u.department === currentUser.department);
+  }, [users, currentUser]);
+
   // Memoize the grid data to avoid heavy recalculations
   const calendarGrid = useMemo(() => {
-    return users.map(user => {
+    return visibleUsers.map(user => {
       const userRequests = requests.filter(
         r => r.userId === user.id && 
         (r.status === RequestStatus.APPROVED || r.status === RequestStatus.PENDING)
@@ -57,12 +68,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ requests, users }) =
         })
       };
     });
-  }, [users, requests, currentDate, days]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [visibleUsers, requests, currentDate, days]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-        <h2 className="text-lg font-bold text-gray-800 capitalize">{monthName}</h2>
+        <div>
+          <h2 className="text-lg font-bold text-gray-800 capitalize">{monthName}</h2>
+          {currentUser.role !== UserRole.MANAGER && (
+            <p className="text-xs text-gray-500">Visualizzi solo il reparto: {currentUser.department}</p>
+          )}
+        </div>
         <div className="flex space-x-2">
           <button onClick={handlePrevMonth} className="p-2 hover:bg-white rounded-full shadow-sm text-gray-600">
             &lt;
@@ -95,7 +111,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ requests, users }) =
                     <div className="flex items-center">
                       <img className="h-8 w-8 rounded-full" src={user.avatar} alt="" />
                       <div className="ml-3">
-                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                        <div className={`text-sm font-medium ${user.id === currentUser.id ? 'text-indigo-600 font-bold' : 'text-gray-900'}`}>
+                          {user.name} {user.id === currentUser.id && '(Tu)'}
+                        </div>
                         <div className="text-xs text-gray-500">{user.department}</div>
                       </div>
                     </div>

@@ -1,8 +1,5 @@
-
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { query, initDb } from './db.js';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
@@ -10,17 +7,17 @@ import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const app = express();
-const PORT = process.env.PORT || 3000;
-
+// Vercel gestisce il parsing del body automaticamente in alcuni casi, ma lo lasciamo per sicurezza
 app.use(cors());
 app.use(express.json());
 
-// Initialize Database
-initDb();
+// Initialize Gemini AI
+const apiKey = process.env.API_KEY;
+let ai = null;
+if (apiKey) {
+  ai = new GoogleGenAI({ apiKey: apiKey });
+}
 
 // Email Transporter
 const transporter = nodemailer.createTransport({
@@ -31,12 +28,9 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Initialize Gemini AI (Backend Side)
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const sendEmail = async (to, subject, text) => {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.log(`[MOCK EMAIL] To: ${to} | Subject: ${subject} | Body: ${text}`);
+    console.log(`[LOG EMAIL] A: ${to} | Oggetto: ${subject}`);
     return;
   }
   try {
@@ -46,18 +40,22 @@ const sendEmail = async (to, subject, text) => {
       subject,
       text
     });
-    console.log(`Email sent to ${to}`);
   } catch (error) {
-    console.error('Email error:', error);
+    console.error('Errore invio email:', error);
   }
 };
 
-// API Routes
+// --- API Routes ---
 
-// Login
+app.get('/api/health', (req, res) => {
+    res.send('Server is running');
+});
+
 app.post('/api/login', async (req, res) => {
   const { email, password, role } = req.body;
   try {
+    // Assicuriamo che il DB sia pronto (in serverless potrebbe non esserlo al primo avvio a freddo)
+    await initDb();
     const result = await query('SELECT * FROM users WHERE email = $1', [email]);
     const user = result.rows[0];
 
@@ -74,9 +72,9 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Get Users
 app.get('/api/users', async (req, res) => {
   try {
+    await initDb();
     const result = await query('SELECT * FROM users ORDER BY name');
     res.json(result.rows);
   } catch (err) {
@@ -84,7 +82,6 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-// Create User
 app.post('/api/users', async (req, res) => {
   const { id, name, email, role, department, avatar, password } = req.body;
   try {
@@ -98,9 +95,9 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
-// Get Requests
 app.get('/api/requests', async (req, res) => {
   try {
+    await initDb();
     const result = await query(`
       SELECT 
         id, user_id as "userId", start_date as "startDate", end_date as "endDate", 
@@ -121,7 +118,6 @@ app.get('/api/requests', async (req, res) => {
   }
 });
 
-// Create Request
 app.post('/api/requests', async (req, res) => {
   const { id, userId, startDate, endDate, status, reason, createdAt } = req.body;
   try {
@@ -146,7 +142,6 @@ app.post('/api/requests', async (req, res) => {
   }
 });
 
-// Update Request Status
 app.put('/api/requests/:id', async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -175,17 +170,27 @@ app.put('/api/requests/:id', async (req, res) => {
   }
 });
 
-// AI Analysis Endpoint
+app.post('/api/admin/reset', async (req, res) => {
+  try {
+    await query('DROP TABLE IF EXISTS leave_requests CASCADE');
+    await query('DROP TABLE IF EXISTS users CASCADE');
+    await initDb(); // Ricrea subito
+    res.json({ message: 'Database reset successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/analyze', async (req, res) => {
+  if (!ai) return res.status(503).json({ error: "AI Service not configured (Missing API Key)" });
+
   try {
     const { requests, users } = req.body;
-    
-    // Filter for active requests
     const activeRequests = requests.filter(
       (r) => r.status === "Approvato" || r.status === "In Attesa"
     );
 
-    // Simplify data
     const scheduleData = activeRequests.map((req) => {
       const user = users.find((u) => u.id === req.userId);
       return {
@@ -197,14 +202,7 @@ app.post('/api/analyze', async (req, res) => {
       };
     });
 
-    const prompt = `
-      Sei un assistente HR intelligente. Analizza i seguenti dati sulle ferie dei dipendenti.
-      Identifica potenziali conflitti (troppe persone dello stesso dipartimento assenti contemporaneamente) 
-      o periodi critici. Sii conciso, professionale e utile. Parla in italiano.
-      
-      Dati:
-      ${JSON.stringify(scheduleData, null, 2)}
-    `;
+    const prompt = `Sei un assistente HR. Analizza: ${JSON.stringify(scheduleData)}. Trova conflitti per reparto. Rispondi in italiano.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -218,7 +216,6 @@ app.post('/api/analyze', async (req, res) => {
   }
 });
 
-// Send Custom Email
 app.post('/api/notify', async (req, res) => {
   const { to, subject, body } = req.body;
   try {
@@ -229,13 +226,18 @@ app.post('/api/notify', async (req, res) => {
   }
 });
 
-// Serve React Frontend (Production)
-app.use(express.static(path.join(__dirname, '../dist')));
+// SOLO se avviato localmente (non su Vercel), avvia il server
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, async () => {
+        try {
+            await initDb();
+            console.log(`🚀 Server locale avviato sulla porta ${PORT}`);
+        } catch(e) {
+            console.error("Errore avvio locale", e);
+        }
+    });
+}
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Fondamentale per Vercel
+export default app;

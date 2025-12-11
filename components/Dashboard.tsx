@@ -12,8 +12,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ requests, currentUser, use
   const [aiAnalysis, setAiAnalysis] = useState<string>('');
   const [loadingAi, setLoadingAi] = useState(false);
 
-  const pendingCount = requests.filter(r => r.status === RequestStatus.PENDING).length;
-  const approvedCount = requests.filter(r => r.status === RequestStatus.APPROVED).length;
+  const isManager = currentUser.role === UserRole.MANAGER;
+
+  // Filtra le richieste in base al ruolo per i conteggi
+  const visibleRequests = isManager 
+    ? requests 
+    : requests.filter(r => r.userId === currentUser.id);
+
+  const pendingCount = visibleRequests.filter(r => r.status === RequestStatus.PENDING).length;
+  const approvedCount = visibleRequests.filter(r => r.status === RequestStatus.APPROVED).length;
   const myRequests = requests.filter(r => r.userId === currentUser.id);
 
   const handleAiAnalysis = async () => {
@@ -33,14 +40,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ requests, currentUser, use
       <h2 className="text-2xl font-bold text-gray-800">Benvenuto, {currentUser.name}</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Card 1: Totale Personale */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-gray-500 text-sm font-medium uppercase">Le mie Ferie</h3>
           <p className="text-3xl font-bold text-indigo-600 mt-2">{myRequests.length}</p>
-          <p className="text-sm text-gray-400 mt-1">Richieste totali</p>
+          <p className="text-sm text-gray-400 mt-1">Richieste totali inviate</p>
         </div>
         
+        {/* Card 2: Stato Richieste (Filtrato per ruolo) */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h3 className="text-gray-500 text-sm font-medium uppercase">Stato Richieste</h3>
+          <h3 className="text-gray-500 text-sm font-medium uppercase">
+            {isManager ? "Stato Aziendale" : "Stato Mie Richieste"}
+          </h3>
           <div className="mt-2 flex items-center space-x-4">
              <div className="text-center">
                 <span className="block text-2xl font-bold text-yellow-500">{pendingCount}</span>
@@ -54,14 +65,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ requests, currentUser, use
           </div>
         </div>
 
+        {/* Card 3: AI Assistant */}
         <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-xl shadow-md text-white">
           <h3 className="text-indigo-100 text-sm font-medium uppercase">AI Assistant</h3>
           <p className="mt-2 text-sm opacity-90">
-            {currentUser.role === UserRole.MANAGER 
+            {isManager 
               ? "Analizza i conflitti di programmazione con Gemini." 
               : "Visualizza i suggerimenti per le tue ferie."}
           </p>
-          {currentUser.role === UserRole.MANAGER && (
+          {isManager && (
             <button 
               onClick={handleAiAnalysis}
               disabled={loadingAi}

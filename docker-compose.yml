@@ -1,0 +1,33 @@
+services:
+  # Servizio Applicazione (Node + React)
+  app:
+    build: .
+    container_name: gestione_ferie_app
+    restart: always
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgres://postgres:password_segreta@db:5432/ferie_db
+      - DISABLE_SSL=true
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  # Servizio Database (PostgreSQL)
+  db:
+    image: postgres:15-alpine
+    container_name: gestione_ferie_db
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password_segreta
+      - POSTGRES_DB=ferie_db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  pg_data:

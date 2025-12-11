@@ -1,4 +1,3 @@
-
 import pg from 'pg';
 import dotenv from 'dotenv';
 
@@ -6,18 +5,34 @@ dotenv.config();
 
 const { Pool } = pg;
 
-// Connection string is provided by Render or .env
+// Vercel inietta automaticamente POSTGRES_URL quando colleghi il database
+const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.warn("⚠️ ATTENZIONE: Nessuna stringa di connessione DB trovata.");
+}
+
+const isProduction = process.env.NODE_ENV === 'production';
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  connectionString,
+  ssl: isProduction ? { rejectUnauthorized: false } : false,
+  max: 10, // Limitiamo le connessioni per il serverless
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 });
 
 export const query = (text, params) => pool.query(text, params);
 
+// Init DB: controlla che le tabelle esistano
+let dbInitialized = false;
+
 export const initDb = async () => {
+  if (dbInitialized) return;
+
   const client = await pool.connect();
   try {
-    // Users Table
+    // Creazione Tabelle se non esistono
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(50) PRIMARY KEY,
@@ -26,11 +41,10 @@ export const initDb = async () => {
         role VARCHAR(20) NOT NULL,
         department VARCHAR(50) NOT NULL,
         avatar TEXT,
-        password VARCHAR(100) -- Simple text for demo, use bcrypt in production
+        password VARCHAR(100)
       );
     `);
 
-    // Requests Table
     await client.query(`
       CREATE TABLE IF NOT EXISTS leave_requests (
         id VARCHAR(50) PRIMARY KEY,
@@ -43,23 +57,15 @@ export const initDb = async () => {
       );
     `);
 
-    // Seed Data if empty
+    // Seeding (Popolamento iniziale se vuoto)
     const { rows } = await client.query('SELECT COUNT(*) FROM users');
     if (parseInt(rows[0].count) === 0) {
-      console.log('Seeding initial data...');
-      
-      // Seed Users
+      console.log('Database vuoto. Inserimento dati demo...');
       const users = [
         ['u1', 'Mario Rossi', 'mario@azienda.it', 'Manager', 'MANAGEMENT', 'https://picsum.photos/seed/u1/200', 'admin'],
         ['u2', 'Luca Bianchi', 'luca@azienda.it', 'Dipendente', 'HELPDESK', 'https://picsum.photos/seed/u2/200', null],
         ['u3', 'Giulia Verdi', 'giulia@azienda.it', 'Dipendente', 'PREVENDITA', 'https://picsum.photos/seed/u3/200', null],
-        ['u4', 'Sofia Esposito', 'sofia@azienda.it', 'Dipendente', 'COMMERCIALI', 'https://picsum.photos/seed/u4/200', null],
-        ['u5', 'Alessandro Romano', 'ale@azienda.it', 'Dipendente', 'HELPDESK', 'https://picsum.photos/seed/u5/200', null],
-        ['u6', 'Francesca Colombo', 'fra@azienda.it', 'Dipendente', 'COMMERCIALI', 'https://picsum.photos/seed/u6/200', null],
-        ['u7', 'Matteo Ricci', 'matteo@azienda.it', 'Dipendente', 'PREVENDITA', 'https://picsum.photos/seed/u7/200', null],
-        ['u8', 'Chiara Marino', 'chiara@azienda.it', 'Dipendente', 'HELPDESK', 'https://picsum.photos/seed/u8/200', null],
-        ['u9', 'Lorenzo Greco', 'lorenzo@azienda.it', 'Dipendente', 'COMMERCIALI', 'https://picsum.photos/seed/u9/200', null],
-        ['u10', 'Alice Bruno', 'alice@azienda.it', 'Dipendente', 'PREVENDITA', 'https://picsum.photos/seed/u10/200', null]
+        ['u4', 'Sofia Esposito', 'sofia@azienda.it', 'Dipendente', 'COMMERCIALI', 'https://picsum.photos/seed/u4/200', null]
       ];
 
       for (const u of users) {
@@ -68,29 +74,12 @@ export const initDb = async () => {
           u
         );
       }
-
-      // Seed Requests
-      const now = Date.now();
-      const today = new Date().toISOString().split('T')[0];
-      const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
-      const twoWeeks = new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0];
-
-      const requests = [
-        ['req1', 'u2', today, nextWeek, 'Approvato', 'Vacanza estiva', now],
-        ['req2', 'u5', today, new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0], 'In Attesa', 'Visita medica', now],
-        ['req3', 'u4', nextWeek, twoWeeks, 'In Attesa', 'Matrimonio sorella', now]
-      ];
-
-      for (const r of requests) {
-        await client.query(
-          'INSERT INTO leave_requests (id, user_id, start_date, end_date, status, reason, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-          r
-        );
-      }
     }
-
+    dbInitialized = true;
+    console.log("DB Inizializzato Correttamente.");
   } catch (err) {
-    console.error('Error initializing DB', err);
+    console.error('Errore inizializzazione DB:', err);
+    throw err;
   } finally {
     client.release();
   }
