@@ -62,10 +62,16 @@ export const initDb = async () => {
     if (parseInt(rows[0].count) === 0) {
       console.log('Database vuoto. Inserimento dati demo...');
       const users = [
-        ['u1', 'Mario Rossi', 'mario@azienda.it', 'Manager', 'MANAGEMENT', 'https://picsum.photos/seed/u1/200', 'admin'],
-        ['u2', 'Luca Bianchi', 'luca@azienda.it', 'Dipendente', 'HELPDESK', 'https://picsum.photos/seed/u2/200', null],
-        ['u3', 'Giulia Verdi', 'giulia@azienda.it', 'Dipendente', 'PREVENDITA', 'https://picsum.photos/seed/u3/200', null],
-        ['u4', 'Sofia Esposito', 'sofia@azienda.it', 'Dipendente', 'COMMERCIALI', 'https://picsum.photos/seed/u4/200', null]
+         ['u1', 'Matteo Vizzani', 'matteo.vizzani@rematarlazzi.it', 'Manager', 'MANAGEMENT', 'https://picsum.photos/seed/u1/200', 'admin'],
+        ['u2', 'Peter Di Pasquantonio', 'peter.dipasquantonio@rematarlazzi.it', 'Dipendente', 'HELPDESK', 'https://picsum.photos/seed/u2/200', null],
+        ['u3', 'Luca Russo ', 'luca.russo@rematarlazzi.it', 'Dipendente', 'PREVENDITA', 'https://picsum.photos/seed/u3/200', null],
+        ['u4', 'Pietro Masciulli', 'pietro.masciulli@rematarlazzi.it', 'Dipendente', 'PREVENDITA', 'https://picsum.photos/seed/u4/200', null],
+        ['u5', 'Vittorio Spina ', 'vittorio.spina@rematarlazzi.it', 'Dipendente', 'HELPDESK', 'https://picsum.photos/seed/u5/200', null],
+        ['u6', 'Massimo Funicelli', 'massimo.funicelli@rematarlazzi.it', 'Dipendente', 'COMMERCIALI', 'https://picsum.photos/seed/u6/200', null],
+        ['u7', 'Paolo Fascianella', 'paolo.fascianella@rematarlazzi.it', 'Dipendente', 'COMMERCIALI', 'https://picsum.photos/seed/u7/200', null],
+        ['u8', 'Valerio La Rovere', 'valerio.larovere@rematarlazzi.it', 'Dipendente', 'COMMERCIALI', 'https://picsum.photos/seed/u8/200', null],
+        ['u9', 'Stefano DAmico  ', 'stefano.damico@rematarlazzi.it', 'Dipendente', 'PREVENDITA', 'https://picsum.photos/seed/u9/200', null],
+        ['u10', 'Pierluigi DAlessio ', 'pierluigi.dalessio@rematarlazzi.it','Manager', 'MANAGEMENT', 'https://picsum.photos/seed/u10/200', 'admin']
       ];
 
       for (const u of users) {
