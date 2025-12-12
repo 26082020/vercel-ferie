@@ -64,7 +64,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ requests, users, cur
         user,
         days: days.map(day => {
           const req = userRequests.find(r => isDayOff(day, r));
-          return req ? { status: req.status, type: req.type } : null;
+          // Passiamo anche startTime ed endTime per il tooltip
+          return req ? { 
+            status: req.status, 
+            type: req.type,
+            startTime: req.startTime,
+            endTime: req.endTime
+          } : null;
         })
       };
     });
@@ -124,14 +130,18 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ requests, users, cur
                       {data?.status === RequestStatus.APPROVED && (
                         <div 
                           className={`h-6 w-full rounded-sm mx-auto shadow-sm ${data.type === RequestType.ROL ? 'bg-cyan-500' : 'bg-green-500'}`} 
-                          title={data.type === RequestType.ROL ? "ROL Approvato" : "Ferie Approvate"}
+                          title={data.type === RequestType.ROL 
+                            ? `ROL Approvato: ${data.startTime || ''} - ${data.endTime || ''}` 
+                            : "Ferie Approvate"}
                         ></div>
                       )}
                       {/* Cella per In Attesa */}
                       {data?.status === RequestStatus.PENDING && (
                          <div 
                          className={`h-6 w-full rounded-sm mx-auto shadow-sm ${data.type === RequestType.ROL ? 'bg-cyan-200' : 'bg-yellow-400'}`} 
-                         title={data.type === RequestType.ROL ? "ROL In Attesa" : "Ferie In Attesa"}
+                         title={data.type === RequestType.ROL 
+                            ? `ROL In Attesa: ${data.startTime || ''} - ${data.endTime || ''}` 
+                            : "Ferie In Attesa"}
                        ></div>
                       )}
                       {!data && (
