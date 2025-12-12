@@ -121,10 +121,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ requests, users, cur
                   {days.map((status, idx) => (
                     <td key={idx} className="px-1 py-2 whitespace-nowrap text-center">
                       {status === RequestStatus.APPROVED && (
-                        <div className="h-6 w-full bg-green-500 rounded-sm mx-auto shadow-sm" title="Approvato"></div>
+                        <div className="h-6 w-full bg-green-200 rounded-sm mx-auto" title="Approvato"></div>
                       )}
                       {status === RequestStatus.PENDING && (
-                        <div className="h-6 w-full bg-yellow-400 rounded-sm mx-auto shadow-sm" title="In Attesa"></div>
+                        <div className="h-6 w-full bg-yellow-100 rounded-sm mx-auto" title="In Attesa"></div>
                       )}
                       {!status && (
                         <div className="h-1 w-1 bg-gray-100 rounded-full mx-auto"></div>
@@ -138,8 +138,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ requests, users, cur
         </div>
       </div>
        <div className="p-4 bg-gray-50 border-t border-gray-100 flex space-x-6 text-sm">
-          <div className="flex items-center"><span className="w-4 h-4 bg-green-500 rounded-sm mr-2 shadow-sm"></span> Approvato</div>
-          <div className="flex items-center"><span className="w-4 h-4 bg-yellow-400 rounded-sm mr-2 shadow-sm"></span> In Attesa</div>
+          <div className="flex items-center"><span className="w-4 h-4 bg-green-200 rounded-sm mr-2"></span> Approvato</div>
+          <div className="flex items-center"><span className="w-4 h-4 bg-yellow-100 rounded-sm mr-2"></span> In Attesa</div>
        </div>
     </div>
   );

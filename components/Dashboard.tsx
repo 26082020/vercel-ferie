@@ -54,13 +54,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ requests, currentUser, use
           </h3>
           <div className="mt-2 flex items-center space-x-4">
              <div className="text-center">
-                <span className="block text-2xl font-bold text-yellow-600">{pendingCount}</span>
-                <span className="text-xs text-gray-500">In Attesa</span>
+                <span className="block text-2xl font-bold text-yellow-500">{pendingCount}</span>
+                <span className="text-xs text-gray-400">In Attesa</span>
              </div>
              <div className="h-8 w-px bg-gray-200"></div>
              <div className="text-center">
-                <span className="block text-2xl font-bold text-green-600">{approvedCount}</span>
-                <span className="text-xs text-gray-500">Approvate</span>
+                <span className="block text-2xl font-bold text-green-500">{approvedCount}</span>
+                <span className="text-xs text-gray-400">Approvate</span>
              </div>
           </div>
         </div>
