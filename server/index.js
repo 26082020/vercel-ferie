@@ -4,6 +4,7 @@ import { query, initDb } from './db.js';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from "@google/genai";
+import path from 'path';
 
 dotenv.config();
 
@@ -11,6 +12,12 @@ const app = express();
 // Vercel gestisce il parsing del body automaticamente in alcuni casi, ma lo lasciamo per sicurezza
 app.use(cors());
 app.use(express.json());
+
+// CONFIGURAZIONE FILE STATICI:
+// Questo permette al server Node di servire file come logo.png se si trovano nella root o in public
+// Utile quando si avvia con 'npm start' invece che tramite Vite
+app.use(express.static(process.cwd())); 
+app.use(express.static(path.join(process.cwd(), 'public')));
 
 // Initialize Gemini AI
 const apiKey = process.env.API_KEY;
@@ -60,12 +67,29 @@ app.post('/api/login', async (req, res) => {
     const user = result.rows[0];
 
     if (!user) return res.status(404).json({ error: 'Utente non trovato' });
-    if (user.role !== role) return res.status(403).json({ error: 'Ruolo non corrispondente' });
+
+    // LOGICA MIGLIORATA:
+    // Invece di bloccare se il ruolo selezionato è diverso, guidiamo l'utente o permettiamo l'accesso se sicuro.
     
-    if (role === 'Gestione' && user.password !== password) {
-      return res.status(401).json({ error: 'Password errata' });
+    // CASO 1: L'utente nel DB è un Manager (Gestione)
+    if (user.role === 'Gestione') {
+      // Se sta provando ad accedere come Richiedente (senza password) o la password è sbagliata
+      if (!password || password !== user.password) {
+        if (role !== 'Gestione') {
+           return res.status(403).json({ error: "Questo è un account Gestione. Seleziona il tab 'Gestione' e inserisci la password." });
+        }
+        return res.status(401).json({ error: 'Password errata' });
+      }
+      // Se ha messo la password giusta e il ruolo è Gestione (o anche se ha sbagliato tab ma ha messo la pwd giusta, lo facciamo passare)
+    } 
+    
+    // CASO 2: L'utente nel DB è un Richiedente (Employee)
+    else {
+      // I Richiedenti non hanno password. Se l'utente ha selezionato 'Gestione' per sbaglio, lo facciamo entrare lo stesso.
+      // Non serve controllare la password.
     }
 
+    // Se arriviamo qui, il login è valido
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -98,10 +122,11 @@ app.post('/api/users', async (req, res) => {
 app.get('/api/requests', async (req, res) => {
   try {
     await initDb();
+    // Aggiornata query per includere i nuovi campi
     const result = await query(`
       SELECT 
         id, user_id as "userId", start_date as "startDate", end_date as "endDate", 
-        status, reason, created_at as "createdAt"
+        status, reason, created_at as "createdAt", type, start_time as "startTime", end_time as "endTime"
       FROM leave_requests ORDER BY created_at DESC
     `);
     
@@ -109,7 +134,9 @@ app.get('/api/requests', async (req, res) => {
       ...r,
       startDate: new Date(r.startDate).toISOString().split('T')[0],
       endDate: new Date(r.endDate).toISOString().split('T')[0],
-      createdAt: parseInt(r.createdAt)
+      createdAt: parseInt(r.createdAt),
+      // Assicuriamoci che type abbia un valore di default
+      type: r.type || 'Ferie' 
     }));
 
     res.json(formatted);
@@ -119,22 +146,24 @@ app.get('/api/requests', async (req, res) => {
 });
 
 app.post('/api/requests', async (req, res) => {
-  const { id, userId, startDate, endDate, status, reason, createdAt } = req.body;
+  const { id, userId, startDate, endDate, status, reason, createdAt, type, startTime, endTime } = req.body;
   try {
     await query(
-      'INSERT INTO leave_requests (id, user_id, start_date, end_date, status, reason, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      [id, userId, startDate, endDate, status, reason, createdAt]
+      'INSERT INTO leave_requests (id, user_id, start_date, end_date, status, reason, created_at, type, start_time, end_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+      [id, userId, startDate, endDate, status, reason, createdAt, type || 'Ferie', startTime, endTime]
     );
 
     const userRes = await query('SELECT * FROM users WHERE id = $1', [userId]);
     const user = userRes.rows[0];
 
     const reasonText = reason || 'Nessuna motivazione specificata';
+    const typeLabel = (type === 'ROL') ? 'Permesso ROL' : 'Ferie';
+    const timeDetail = (type === 'ROL' && startTime && endTime) ? `\nOrario: ${startTime} - ${endTime}` : '';
 
     await sendEmail(
       'matteo.vizzani@rematarlazzi.it',
-      `Nuova Richiesta Ferie: ${user.name}`,
-      `Il dipendente ${user.name} (${user.department}) ha richiesto ferie dal ${startDate} al ${endDate}.\nMotivo: ${reasonText}`
+      `Nuova Richiesta ${typeLabel}: ${user.name}`,
+      `Il dipendente ${user.name} (${user.department}) ha richiesto ${typeLabel} il ${startDate}${timeDetail}.\nMotivo: ${reasonText}`
     );
 
     res.status(201).json({ message: 'Request created' });
@@ -160,8 +189,8 @@ app.put('/api/requests/:id', async (req, res) => {
       if (user) {
         await sendEmail(
           user.email,
-          `Aggiornamento Ferie: ${status}`,
-          `Ciao ${user.name}, la tua richiesta di ferie dal ${new Date(request.start_date).toISOString().split('T')[0]} è stata: ${status}.`
+          `Aggiornamento Richiesta: ${status}`,
+          `Ciao ${user.name}, la tua richiesta per il ${new Date(request.start_date).toISOString().split('T')[0]} è stata: ${status}.`
         );
       }
     }
@@ -200,11 +229,13 @@ app.post('/api/analyze', async (req, res) => {
         department: user?.department,
         start: req.startDate,
         end: req.endDate,
+        type: req.type, // Passiamo anche il tipo all'AI
+        time: req.startTime ? `${req.startTime}-${req.endTime}` : 'All Day',
         status: req.status,
       };
     });
 
-    const prompt = `Sei un assistente HR. Analizza: ${JSON.stringify(scheduleData)}. Trova conflitti per reparto. Rispondi in italiano.`;
+    const prompt = `Sei un assistente HR. Analizza: ${JSON.stringify(scheduleData)}. Trova conflitti per reparto. Nota: I ROL sono permessi orari, le Ferie giorni interi. Rispondi in italiano.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",

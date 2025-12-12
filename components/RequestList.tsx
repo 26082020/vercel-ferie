@@ -1,5 +1,5 @@
 import React from 'react';
-import { LeaveRequest, RequestStatus, User, UserRole, Department } from '../types';
+import { LeaveRequest, RequestStatus, User, UserRole, Department, RequestType } from '../types';
 
 interface RequestListProps {
   requests: LeaveRequest[];
@@ -39,7 +39,7 @@ export const RequestList: React.FC<RequestListProps> = ({ requests, currentUser,
       const otherStart = new Date(otherReq.startDate);
       const otherEnd = new Date(otherReq.endDate);
 
-      // Check overlap
+      // Check overlap simple (Day level)
       if (start <= otherEnd && end >= otherStart) {
          const otherUser = users.find(u => u.id === otherReq.userId);
          if (otherUser) {
@@ -67,6 +67,7 @@ export const RequestList: React.FC<RequestListProps> = ({ requests, currentUser,
 
         const conflicts = checkConflicts(req, requester);
         const hasConflicts = conflicts.length > 0;
+        const isRol = req.type === RequestType.ROL;
 
         return (
           <div key={req.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col space-y-4">
@@ -74,16 +75,23 @@ export const RequestList: React.FC<RequestListProps> = ({ requests, currentUser,
                 <div className="flex items-start space-x-4">
                 <img src={requester.avatar} alt={requester.name} className="w-12 h-12 rounded-full object-cover shadow-sm" />
                 <div>
-                    <h4 className="text-lg font-bold text-gray-800">{requester.name}</h4>
-                    <p className="text-sm text-gray-500">{requester.department} &bull; {req.reason}</p>
+                    <div className="flex items-center gap-2">
+                        <h4 className="text-lg font-bold text-gray-800">{requester.name}</h4>
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${isRol ? 'bg-cyan-100 text-cyan-800' : 'bg-purple-100 text-purple-800'}`}>
+                            {req.type || 'FERIE'}
+                        </span>
+                    </div>
+                    <p className="text-sm text-gray-500">{requester.department} &bull; {req.reason || 'Nessun motivo'}</p>
                     <div className="flex items-center mt-2 space-x-3 text-sm">
                     <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                        {new Date(req.startDate).toLocaleDateString('it-IT')} &rarr; {new Date(req.endDate).toLocaleDateString('it-IT')}
+                        {new Date(req.startDate).toLocaleDateString('it-IT')} 
+                        {!isRol && ` \u2192 ${new Date(req.endDate).toLocaleDateString('it-IT')}`}
+                        {isRol && req.startTime && req.endTime && ` (${req.startTime} - ${req.endTime})`}
                     </span>
-                    <span className={`px-2 py-1 rounded font-medium ${
-                        req.status === RequestStatus.APPROVED ? 'bg-green-100 text-green-700' :
-                        req.status === RequestStatus.REJECTED ? 'bg-red-100 text-red-700' :
-                        'bg-yellow-100 text-yellow-700'
+                    <span className={`px-2 py-1 rounded font-medium shadow-sm ${
+                        req.status === RequestStatus.APPROVED ? 'bg-green-600 text-white' :
+                        req.status === RequestStatus.REJECTED ? 'bg-red-600 text-white' :
+                        'bg-yellow-400 text-yellow-900'
                     }`}>
                         {req.status}
                     </span>
@@ -95,7 +103,7 @@ export const RequestList: React.FC<RequestListProps> = ({ requests, currentUser,
                 <div className="flex space-x-2 mt-4 md:mt-0 w-full md:w-auto">
                     <button
                     onClick={() => onUpdateStatus(req.id, RequestStatus.APPROVED)}
-                    className="flex-1 md:flex-none px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium shadow-sm shadow-green-200"
+                    className="flex-1 md:flex-none px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium shadow-sm shadow-green-200"
                     >
                     Approva
                     </button>

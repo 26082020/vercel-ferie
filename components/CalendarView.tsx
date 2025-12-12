@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { User, LeaveRequest, RequestStatus, UserRole } from '../types';
+import { User, LeaveRequest, RequestStatus, UserRole, RequestType } from '../types';
 
 interface CalendarViewProps {
   requests: LeaveRequest[];
@@ -64,7 +64,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ requests, users, cur
         user,
         days: days.map(day => {
           const req = userRequests.find(r => isDayOff(day, r));
-          return req ? req.status : null;
+          return req ? { status: req.status, type: req.type } : null;
         })
       };
     });
@@ -118,15 +118,23 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ requests, users, cur
                       </div>
                     </div>
                   </td>
-                  {days.map((status, idx) => (
+                  {days.map((data, idx) => (
                     <td key={idx} className="px-1 py-2 whitespace-nowrap text-center">
-                      {status === RequestStatus.APPROVED && (
-                        <div className="h-6 w-full bg-green-200 rounded-sm mx-auto" title="Approvato"></div>
+                      {/* Cella per Approvato */}
+                      {data?.status === RequestStatus.APPROVED && (
+                        <div 
+                          className={`h-6 w-full rounded-sm mx-auto shadow-sm ${data.type === RequestType.ROL ? 'bg-cyan-500' : 'bg-green-500'}`} 
+                          title={data.type === RequestType.ROL ? "ROL Approvato" : "Ferie Approvate"}
+                        ></div>
                       )}
-                      {status === RequestStatus.PENDING && (
-                        <div className="h-6 w-full bg-yellow-100 rounded-sm mx-auto" title="In Attesa"></div>
+                      {/* Cella per In Attesa */}
+                      {data?.status === RequestStatus.PENDING && (
+                         <div 
+                         className={`h-6 w-full rounded-sm mx-auto shadow-sm ${data.type === RequestType.ROL ? 'bg-cyan-200' : 'bg-yellow-400'}`} 
+                         title={data.type === RequestType.ROL ? "ROL In Attesa" : "Ferie In Attesa"}
+                       ></div>
                       )}
-                      {!status && (
+                      {!data && (
                         <div className="h-1 w-1 bg-gray-100 rounded-full mx-auto"></div>
                       )}
                     </td>
@@ -138,8 +146,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ requests, users, cur
         </div>
       </div>
        <div className="p-4 bg-gray-50 border-t border-gray-100 flex space-x-6 text-sm">
-          <div className="flex items-center"><span className="w-4 h-4 bg-green-200 rounded-sm mr-2"></span> Approvato</div>
-          <div className="flex items-center"><span className="w-4 h-4 bg-yellow-100 rounded-sm mr-2"></span> In Attesa</div>
+          <div className="flex items-center"><span className="w-4 h-4 bg-green-500 rounded-sm mr-2 shadow-sm"></span> Ferie</div>
+          <div className="flex items-center"><span className="w-4 h-4 bg-cyan-500 rounded-sm mr-2 shadow-sm"></span> ROL</div>
+          <div className="flex items-center"><span className="w-4 h-4 bg-yellow-400 rounded-sm mr-2 shadow-sm"></span> In Attesa</div>
        </div>
     </div>
   );

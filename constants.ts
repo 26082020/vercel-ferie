@@ -1,4 +1,5 @@
-import { User, UserRole, LeaveRequest, RequestStatus, Department } from './types';
+
+import { User, UserRole, LeaveRequest, RequestStatus, Department, RequestType } from './types';
 
 // Helper to format date as YYYY-MM-DD
 const fmt = (d: Date) => d.toISOString().split('T')[0];
@@ -35,6 +36,7 @@ export const INITIAL_REQUESTS: LeaveRequest[] = [
     userId: 'u2', // Luca (Helpdesk)
     startDate: fmt(today),
     endDate: fmt(nextWeek),
+    type: RequestType.FERIE,
     status: RequestStatus.APPROVED,
     reason: 'Vacanza estiva',
     createdAt: Date.now() - 10000000,
@@ -44,6 +46,7 @@ export const INITIAL_REQUESTS: LeaveRequest[] = [
     userId: 'u5', // Alessandro (Helpdesk) - CONFLICT TEST
     startDate: fmt(today),
     endDate: fmt(new Date(today.getTime() + 86400000 * 2)), 
+    type: RequestType.FERIE,
     status: RequestStatus.PENDING,
     reason: 'Visita medica',
     createdAt: Date.now() - 500000,
@@ -53,6 +56,7 @@ export const INITIAL_REQUESTS: LeaveRequest[] = [
     userId: 'u4', // Sofia (Commerciali)
     startDate: fmt(nextWeek),
     endDate: fmt(twoWeeks),
+    type: RequestType.FERIE,
     status: RequestStatus.PENDING,
     reason: 'Matrimonio sorella',
     createdAt: Date.now() - 200000,

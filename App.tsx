@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, LeaveRequest, RequestStatus, ViewState, UserRole } from './types';
+import { User, LeaveRequest, RequestStatus, ViewState, UserRole, RequestType } from './types';
 import { Dashboard } from './components/Dashboard';
 import { CalendarView } from './components/CalendarView';
 import { RequestList } from './components/RequestList';
@@ -18,7 +18,7 @@ export default function App() {
   const [showNewRequestModal, setShowNewRequestModal] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Stato per gestire il doppio click
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch initial data
   const refreshData = async () => {
@@ -43,15 +43,17 @@ export default function App() {
   }, []);
 
   // New Request Form State
+  const [requestType, setRequestType] = useState<RequestType>(RequestType.FERIE);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('13:00');
   const [reason, setReason] = useState('');
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
 
   // --- Logic Helpers ---
 
   const handleUpdateStatus = async (id: string, status: RequestStatus) => {
-    // Optimistic UI Update
     const oldRequests = [...requests];
     setRequests(prev => prev.map(req => req.id === id ? { ...req, status } : req));
     
@@ -99,11 +101,13 @@ export default function App() {
 
       const rStart = new Date(r.startDate);
       const rEnd = new Date(r.endDate);
+      
+      // Controllo sovrapposizione date (Semplificato per ROL: se il giorno coincide, è conflitto)
       return start <= rEnd && end >= rStart;
     });
 
     if (conflicts.length > 0) {
-      setConflictWarning(`Attenzione! Ci sono ${conflicts.length} colleghi del reparto ${currentUser.department} già in ferie in questo periodo.`);
+      setConflictWarning(`Attenzione! Ci sono ${conflicts.length} colleghi del reparto ${currentUser.department} assenti in questo periodo.`);
       return true;
     }
     setConflictWarning(null);
@@ -111,27 +115,34 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (startDate && endDate && showNewRequestModal) {
-      checkConflictsOnSubmit(startDate, endDate);
+    if (startDate && (endDate || requestType === RequestType.ROL) && showNewRequestModal) {
+      // Per i ROL usiamo startDate come endDate per il check
+      const actualEnd = requestType === RequestType.ROL ? startDate : endDate;
+      if(actualEnd) checkConflictsOnSubmit(startDate, actualEnd);
     } else {
       setConflictWarning(null);
     }
-  }, [startDate, endDate, showNewRequestModal]);
+  }, [startDate, endDate, requestType, showNewRequestModal]);
 
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
-    if (isSubmitting) return; // Previene esecuzione multipla
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
+
+    const isRol = requestType === RequestType.ROL;
 
     const newReq: LeaveRequest = {
       id: `req_${Date.now()}`,
       userId: currentUser.id,
       startDate,
-      endDate,
+      endDate: isRol ? startDate : endDate, // Per ROL data inizio = fine
+      type: requestType,
+      startTime: isRol ? startTime : undefined,
+      endTime: isRol ? endTime : undefined,
       status: RequestStatus.PENDING,
-      reason, // Can be empty now
+      reason,
       createdAt: Date.now(),
     };
     
@@ -142,6 +153,8 @@ export default function App() {
       setEndDate('');
       setReason('');
       setConflictWarning(null);
+      // Reset defaults
+      setRequestType(RequestType.FERIE);
       showNotification(`Richiesta inviata! Notifica email spedita a ${MANAGER_EMAIL}`);
       refreshData();
     } catch (error) {
@@ -310,7 +323,7 @@ export default function App() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in duration-200">
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-               <h3 className="text-lg font-bold text-gray-800">Richiedi Ferie</h3>
+               <h3 className="text-lg font-bold text-gray-800">Crea Nuova Richiesta</h3>
                <button 
                 onClick={() => !isSubmitting && setShowNewRequestModal(false)} 
                 className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
@@ -321,6 +334,29 @@ export default function App() {
             </div>
             
             <form onSubmit={handleCreateRequest} className="p-6 space-y-4">
+              
+              {/* SELETTORE TIPO RICHIESTA */}
+              <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setRequestType(RequestType.FERIE)}
+                    className={`flex-1 py-2 rounded-md text-sm font-medium transition ${
+                      requestType === RequestType.FERIE ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Giorni Interi (Ferie)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRequestType(RequestType.ROL)}
+                    className={`flex-1 py-2 rounded-md text-sm font-medium transition ${
+                      requestType === RequestType.ROL ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Permessi Orari (ROL)
+                  </button>
+              </div>
+
               {conflictWarning && (
                 <div className="bg-orange-50 border-l-4 border-orange-500 p-3 text-sm text-orange-700">
                   <p className="font-bold">Attenzione Possibile Conflitto</p>
@@ -328,28 +364,71 @@ export default function App() {
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
-                <input 
-                  type="date" 
-                  required
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  disabled={isSubmitting}
-                  className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition disabled:bg-gray-100"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
-                <input 
-                  type="date" 
-                  required
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  disabled={isSubmitting}
-                  className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition disabled:bg-gray-100"
-                />
-              </div>
+              {requestType === RequestType.FERIE ? (
+                 <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
+                    <input 
+                      type="date" 
+                      required
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      disabled={isSubmitting}
+                      className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition disabled:bg-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
+                    <input 
+                      type="date" 
+                      required
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      disabled={isSubmitting}
+                      className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition disabled:bg-gray-100"
+                    />
+                  </div>
+                 </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Giorno del Permesso</label>
+                    <input 
+                      type="date" 
+                      required
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      disabled={isSubmitting}
+                      className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition disabled:bg-gray-100"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Dalle ore</label>
+                        <input 
+                          type="time" 
+                          required
+                          value={startTime}
+                          onChange={(e) => setStartTime(e.target.value)}
+                          disabled={isSubmitting}
+                          className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition disabled:bg-gray-100"
+                        />
+                     </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Alle ore</label>
+                        <input 
+                          type="time" 
+                          required
+                          value={endTime}
+                          onChange={(e) => setEndTime(e.target.value)}
+                          disabled={isSubmitting}
+                          className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition disabled:bg-gray-100"
+                        />
+                     </div>
+                  </div>
+                </>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Motivazione <span className="text-gray-400 font-normal">(Opzionale)</span>
@@ -358,7 +437,7 @@ export default function App() {
                   rows={3}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="Es. Vacanze estive, Visita medica..."
+                  placeholder={requestType === RequestType.FERIE ? "Es. Vacanze estive..." : "Es. Visita medica, Impegni personali..."}
                   disabled={isSubmitting}
                   className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition disabled:bg-gray-100"
                 ></textarea>

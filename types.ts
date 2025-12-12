@@ -1,5 +1,4 @@
 
-
 export enum UserRole {
   EMPLOYEE = 'Richiedente',
   MANAGER = 'Gestione',
@@ -28,11 +27,19 @@ export enum RequestStatus {
   REJECTED = 'Rifiutato',
 }
 
+export enum RequestType {
+  FERIE = 'Ferie',
+  ROL = 'ROL',
+}
+
 export interface LeaveRequest {
   id: string;
   userId: string;
   startDate: string; // ISO Date string YYYY-MM-DD
   endDate: string;   // ISO Date string YYYY-MM-DD
+  type: RequestType; // Nuovo campo
+  startTime?: string; // Opzionale, solo per ROL (es. "09:00")
+  endTime?: string;   // Opzionale, solo per ROL (es. "13:00")
   status: RequestStatus;
   reason: string;
   createdAt: number;
