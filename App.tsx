@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { User, LeaveRequest, RequestStatus, ViewState, UserRole } from './types';
 import { Dashboard } from './components/Dashboard';
@@ -128,7 +129,7 @@ export default function App() {
       startDate,
       endDate,
       status: RequestStatus.PENDING,
-      reason,
+      reason, // Can be empty now
       createdAt: Date.now(),
     };
     
@@ -173,11 +174,15 @@ export default function App() {
       {/* Sidebar Navigation */}
       <aside className="w-full md:w-64 bg-slate-900 text-white flex-shrink-0 flex flex-col">
         <div className="p-6">
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            <span className="w-2 h-8 bg-indigo-500 rounded-full"></span>
-            FerieManager
-          </h1>
-          <p className="text-xs text-slate-400 mt-1 pl-4">Gestione intelligente</p>
+          <div className="flex items-center gap-3">
+             <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain bg-white rounded-md p-0.5" />
+             <div>
+                <h1 className="text-xl font-bold tracking-tight text-white">
+                  FerieManager
+                </h1>
+                <p className="text-xs text-slate-400">Gestione Ferie AI</p>
+             </div>
+          </div>
         </div>
 
         <nav className="mt-6 px-4 space-y-2 flex-1">
@@ -326,10 +331,11 @@ export default function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Motivazione</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Motivazione <span className="text-gray-400 font-normal">(Opzionale)</span>
+                </label>
                 <textarea 
                   rows={3}
-                  required
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Es. Vacanze estive, Visita medica..."

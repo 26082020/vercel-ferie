@@ -1,3 +1,5 @@
+
+
 import React, { useState } from 'react';
 import { User, UserRole, Department } from '../types';
 
@@ -47,8 +49,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Ruolo</label>
             <select value={role} onChange={e => setRole(e.target.value as UserRole)} className="w-full border rounded-lg p-2">
-              <option value={UserRole.EMPLOYEE}>Dipendente</option>
-              <option value={UserRole.MANAGER}>Manager</option>
+              <option value={UserRole.EMPLOYEE}>Richiedente</option>
+              <option value={UserRole.MANAGER}>Gestione</option>
             </select>
           </div>
           <div>

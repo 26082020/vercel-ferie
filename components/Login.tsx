@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
 
@@ -34,8 +35,8 @@ export const Login: React.FC<LoginProps> = ({ users, onLogin, externalLogin }) =
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl">
-            ✈️
+          <div className="flex justify-center mb-4">
+            <img src="/logo.png" alt="Logo" className="h-20 w-auto object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-gray-800">FerieManager</h1>
           <p className="text-gray-500">Accedi al portale ferie</p>
@@ -48,7 +49,7 @@ export const Login: React.FC<LoginProps> = ({ users, onLogin, externalLogin }) =
               role === UserRole.EMPLOYEE ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            Dipendente
+            Richiedente
           </button>
           <button
             onClick={() => { setRole(UserRole.MANAGER); setError(''); }}
@@ -56,7 +57,7 @@ export const Login: React.FC<LoginProps> = ({ users, onLogin, externalLogin }) =
               role === UserRole.MANAGER ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            Manager
+            Gestione
           </button>
         </div>
 

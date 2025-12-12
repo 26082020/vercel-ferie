@@ -62,7 +62,7 @@ app.post('/api/login', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Utente non trovato' });
     if (user.role !== role) return res.status(403).json({ error: 'Ruolo non corrispondente' });
     
-    if (role === 'Manager' && user.password !== password) {
+    if (role === 'Gestione' && user.password !== password) {
       return res.status(401).json({ error: 'Password errata' });
     }
 
@@ -129,10 +129,12 @@ app.post('/api/requests', async (req, res) => {
     const userRes = await query('SELECT * FROM users WHERE id = $1', [userId]);
     const user = userRes.rows[0];
 
+    const reasonText = reason || 'Nessuna motivazione specificata';
+
     await sendEmail(
       'matteo.vizzani@rematarlazzi.it',
       `Nuova Richiesta Ferie: ${user.name}`,
-      `Il dipendente ${user.name} (${user.department}) ha richiesto ferie dal ${startDate} al ${endDate}.\nMotivo: ${reason}`
+      `Il dipendente ${user.name} (${user.department}) ha richiesto ferie dal ${startDate} al ${endDate}.\nMotivo: ${reasonText}`
     );
 
     res.status(201).json({ message: 'Request created' });

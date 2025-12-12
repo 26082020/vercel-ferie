@@ -1,7 +1,8 @@
 
+
 export enum UserRole {
-  EMPLOYEE = 'Dipendente',
-  MANAGER = 'Manager',
+  EMPLOYEE = 'Richiedente',
+  MANAGER = 'Gestione',
 }
 
 export enum Department {
