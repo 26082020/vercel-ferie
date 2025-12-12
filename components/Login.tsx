@@ -23,7 +23,8 @@ export const Login: React.FC<LoginProps> = ({ users, onLogin, externalLogin }) =
 
     try {
       // Use the API login instead of local filtering
-      await externalLogin(email, role === UserRole.MANAGER ? password : undefined, role);
+      // Trim email to remove accidental spaces
+      await externalLogin(email.trim(), role === UserRole.MANAGER ? password : undefined, role);
     } catch (err: any) {
       setError(err.message || "Errore durante il login");
     } finally {
@@ -36,7 +37,15 @@ export const Login: React.FC<LoginProps> = ({ users, onLogin, externalLogin }) =
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <img src="/logo.png" alt="Logo" className="h-20 w-auto object-contain" />
+            <img 
+              src="/logo.png" 
+              alt="Logo" 
+              className="h-20 w-auto object-contain"
+              onError={(e) => {
+                e.currentTarget.onerror = null; 
+                e.currentTarget.src = "https://ui-avatars.com/api/?name=Ferie+Manager&background=6366f1&color=fff&size=200";
+              }} 
+            />
           </div>
           <h1 className="text-2xl font-bold text-gray-800">FerieManager</h1>
           <p className="text-gray-500">Accedi al portale ferie</p>
