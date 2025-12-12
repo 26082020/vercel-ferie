@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { User, LeaveRequest, RequestStatus, ViewState, UserRole } from './types';
 import { Dashboard } from './components/Dashboard';
@@ -20,6 +18,7 @@ export default function App() {
   const [showNewRequestModal, setShowNewRequestModal] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Stato per gestire il doppio click
 
   // Fetch initial data
   const refreshData = async () => {
@@ -122,6 +121,9 @@ export default function App() {
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
+    if (isSubmitting) return; // Previene esecuzione multipla
+
+    setIsSubmitting(true);
 
     const newReq: LeaveRequest = {
       id: `req_${Date.now()}`,
@@ -144,6 +146,8 @@ export default function App() {
       refreshData();
     } catch (error) {
       showNotification("Errore nell'invio della richiesta.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -175,7 +179,15 @@ export default function App() {
       <aside className="w-full md:w-64 bg-slate-900 text-white flex-shrink-0 flex flex-col">
         <div className="p-6">
           <div className="flex items-center gap-3">
-             <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain bg-white rounded-md p-0.5" />
+             <img 
+               src="/logo.png" 
+               alt="Logo" 
+               className="h-10 w-auto object-contain bg-white rounded-md p-0.5" 
+               onError={(e) => {
+                 e.currentTarget.onerror = null; 
+                 e.currentTarget.src = "https://ui-avatars.com/api/?name=Ferie+Manager&background=6366f1&color=fff";
+               }}
+             />
              <div>
                 <h1 className="text-xl font-bold tracking-tight text-white">
                   FerieManager
@@ -299,7 +311,13 @@ export default function App() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in duration-200">
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
                <h3 className="text-lg font-bold text-gray-800">Richiedi Ferie</h3>
-               <button onClick={() => setShowNewRequestModal(false)} className="text-gray-400 hover:text-gray-600">&times;</button>
+               <button 
+                onClick={() => !isSubmitting && setShowNewRequestModal(false)} 
+                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                disabled={isSubmitting}
+               >
+                 &times;
+               </button>
             </div>
             
             <form onSubmit={handleCreateRequest} className="p-6 space-y-4">
@@ -317,7 +335,8 @@ export default function App() {
                   required
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
+                  disabled={isSubmitting}
+                  className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition disabled:bg-gray-100"
                 />
               </div>
               <div>
@@ -327,7 +346,8 @@ export default function App() {
                   required
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
+                  disabled={isSubmitting}
+                  className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition disabled:bg-gray-100"
                 />
               </div>
               <div>
@@ -339,22 +359,35 @@ export default function App() {
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Es. Vacanze estive, Visita medica..."
-                  className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
+                  disabled={isSubmitting}
+                  className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition disabled:bg-gray-100"
                 ></textarea>
               </div>
               <div className="pt-2 flex space-x-3">
                 <button 
                   type="button" 
                   onClick={() => setShowNewRequestModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium"
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Annulla
                 </button>
                 <button 
                   type="submit" 
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium shadow-lg shadow-indigo-200"
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium shadow-lg shadow-indigo-200 flex justify-center items-center disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  Invia Richiesta
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Invio...
+                    </>
+                  ) : (
+                    "Invia Richiesta"
+                  )}
                 </button>
               </div>
             </form>
